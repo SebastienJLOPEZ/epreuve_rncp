@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task List</title>
+    <style>
+        button { padding: 8px 12px; margin: 5px; cursor: pointer; }
+        button.active { background-color: #007BFF; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Task List</h1>
+
+    <a href="http://localhost:3000/taskadd">Add Task</a>
+
+    <div>
+        <button data-filter="all">Tous</button>
+        <button data-filter="todo">À faire</button>
+        <button data-filter="in-progress">En cours</button>
+        <button data-filter="done">Terminé</button>
+    </div>
+
+    <ul id="task-list">
+        <% tasks.forEach(task => { %>
+            <li class="task-item" data-id="<%= task.id %>" data-status="<%= task.status %>">
+            <strong><%= task.title %></strong>: <%= task.description %> (Status: <%= task.status %>)
+            <button class="edit-btn">Modifier le statut</button>
+            <button class="delete-btn">Supprimer la tâche</button>
+            </li>
+        <% }) %>
+    </ul>
+
+    <!-- Modal pour l'édition des tâches -->
+    <div id="edit-modal" style="display:none;">
+        <div>
+            <span id="close-modal">&times;</span>
+            <h2>Modifier le statut de la tâche</h2>
+            <select id="status-select">
+                <option value="todo">À faire</option>
+                <option value="in-progress">En cours</option>
+                <option value="done">Terminé</option>
+            </select>
+            <button id="save-changes">Enregistrer</button>
+        </div>
+    </div>
+</body>
+
+<script>
+    // Constante d'affichage des tâches
+    const buttons = document.querySelectorAll('button');
+    const taskItems = document.querySelectorAll('li');
+    const taskList = document.getElementById('task-list');
+
+    // Constante pour l'édition du taches
+    const modal = document.getElementById('edit-modal');
+    const closeBtn = document.getElementById('close-modal');
+    const saveBtn = document.getElementById('save-changes');
+    const statusSelect = document.getElementById('status-select');
+    let currentTaskId = null;
+
+    // Constante pour suppression de tâches
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+
+    // Logique de récupération des tâches en fonction du filtre sélectionné
+    buttons.forEach(button => {
+        button.addEventListener('click', async () => {
+            const filter = button.getAttribute('data-filter');
+            let route;
+
+            if (filter === 'all') {
+                route = '/tasks';
+            } else {
+                route = `/tasks?status=${filter}`;
+            }
+
+            try {
+            const response = await fetch(route, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                }
+
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                taskList.innerHTML = '';
+                data.tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.classList.add('task-item');
+                    li.setAttribute('data-status', task.status);
+                    li.innerHTML = `<strong>${task.title}</strong>: ${task.description} (Status: ${task.status})`;
+                    taskList.appendChild(li);
+                });
+            } else {
+                console.error('Erreur lors de la récupération des tâches');
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+        }
+        });
+
+    });
+
+    // Listener pour ouvrir le modal d'édition du statut d'une tâche
+    function attachEditListeners() {
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const taskItem = button.closest('.task-item');
+                currentTaskId = taskItem.getAttribute('data-id');
+                statusSelect.value = taskItem.getAttribute('data-status');
+                modal.style.display = 'block';
+            });
+        });
+    }
+
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // Listener pour l'édition du statut d'une tâche
+    saveBtn.addEventListener('click', async () => {
+        const newStatus = statusSelect.value;
+
+        try {
+            const response = await fetch(`/tasks/${currentTaskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            if (response.ok) {
+                modal.style.display = 'none';
+                document.querySelector(`.task-item[data-id="${currentTaskId}"]`).setAttribute('data-status', newStatus);
+            } else {
+                console.error('Erreur lors de la mise à jour de la tâche');
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+        }
+    });
+    
+    // Listener pour la suppression d'une tâche
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const taskItem = button.closest('.task-item');
+            const taskId = taskItem.getAttribute('data-id');
+
+            try {
+                const response = await fetch(`/tasks/${taskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    taskItem.remove();
+                } else {
+                    console.error('Erreur lors de la suppression de la tâche');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        });
+    });
+
+    attachEditListeners();
+</script>
+</html>

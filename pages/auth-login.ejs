@@ -1,0 +1,56 @@
+<!DOCTYPE>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style></style>
+</head>
+<body>
+    <h1>Login</h1>
+    <form action="/auth/login" method="POST">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <p id="error-message" style="color: red;"></p>
+        <button type="submit">Login</button>
+    </form>
+</body>
+
+<script>
+    const form = document.querySelector('form');
+    const errorMessage = document.getElementById('error-message');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('accessToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                window.location.href = '/tasks';
+            } else {
+                const data = await response.json();
+                errorMessage.textContent = data.message || 'Login failed';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'An error occurred. Please try again.';
+        }
+    });
+
+</script>
+
+</html>
